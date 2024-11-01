@@ -9,7 +9,7 @@ CREATE TABLE Pelicula (
     idPelicula INT PRIMARY KEY,
     titulo VARCHAR(100) NOT NULL,
     genero VARCHAR(50) NOT NULL,
-    duracion INT NOT NULL CHECK (duracion > 0), -- La duración debe ser positiva
+    duracion INT NOT NULL CHECK (duracion > 0), -- La duraciÃ³n debe ser positiva
     clasificacion VARCHAR(20) NOT NULL
 );
 go
@@ -44,8 +44,6 @@ CREATE TABLE Entrada (
     FOREIGN KEY (idFuncion) REFERENCES Funcion(idFuncion), 
     FOREIGN KEY (idCliente) REFERENCES Cliente(idCliente)
 );
-/*Decimal permite almacenar númericos con decimales, 
-en este caso un número de 8 dígitos, 
-de los cuáles 2 serán decimales.*/
+
 go
 
