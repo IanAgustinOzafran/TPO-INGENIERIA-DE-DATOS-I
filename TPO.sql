@@ -14,6 +14,20 @@ CREATE TABLE Pelicula (
 );
 go
 
+-- Trigger para validar que la duración de una película sea mayor a 30 minutos
+CREATE TRIGGER trg_validar_duracion_pelicula
+ON Pelicula
+AFTER INSERT, UPDATE
+AS
+BEGIN
+    IF EXISTS (SELECT * FROM inserted WHERE duracionPelicula < 30)
+    BEGIN
+        RAISERROR ('La duración de la película debe ser de al menos 30 minutos.', 16, 1);
+        ROLLBACK TRANSACTION;
+    END
+END;
+GO
+
 CREATE TABLE Cliente (
     idCliente INT IDENTITY(1,1) PRIMARY KEY,
     nombreCliente1 VARCHAR(50) NOT NULL,
@@ -34,6 +48,19 @@ CREATE TABLE Funcion (
     FOREIGN KEY (idPelicula) REFERENCES Pelicula(idPelicula)
 );
 
+-- Trigger para inicializar capacidadDisponible en la función igual a la capacidad de la sala
+CREATE TRIGGER trg_set_capacidad_disponible
+ON Funcion
+AFTER INSERT
+AS
+BEGIN
+    UPDATE Funcion
+    SET capacidadDisponible = (SELECT capacidadSala FROM Sala WHERE Sala.idSala = Funcion.idSala)
+    FROM Funcion
+    JOIN inserted ON Funcion.idFuncion = inserted.idFuncion;
+END;
+go
+
 go
 
 CREATE TABLE Entrada (
@@ -45,6 +72,29 @@ CREATE TABLE Entrada (
     FOREIGN KEY (idFuncion) REFERENCES Funcion(idFuncion),
     FOREIGN KEY (idCliente) REFERENCES Cliente(idCliente)
 );
+go
+
+-- Trigger para validar la capacidad de la sala antes de insertar una entrada
+CREATE TRIGGER trg_validar_capacidad_funcion
+ON Entrada
+AFTER INSERT
+AS
+BEGIN
+    DECLARE @idFuncion INT, @cantidadEntradas INT;
+    SELECT @idFuncion = idFuncion, @cantidadEntradas = cantidadEntradas FROM inserted;
+    
+    IF (SELECT capacidadDisponible FROM Funcion WHERE idFuncion = @idFuncion) < @cantidadEntradas
+    BEGIN
+        RAISERROR ('La cantidad de entradas excede la capacidad disponible de la sala.', 16, 1);
+        ROLLBACK TRANSACTION;
+    END
+    ELSE
+    BEGIN
+        UPDATE Funcion
+        SET capacidadDisponible = capacidadDisponible - @cantidadEntradas
+        WHERE idFuncion = @idFuncion;
+    END
+END;
 go
 
 CREATE TABLE Asiento (
