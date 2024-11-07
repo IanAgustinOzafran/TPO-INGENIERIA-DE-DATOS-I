@@ -47,21 +47,21 @@ CREATE TABLE Funcion (
     FOREIGN KEY (idSala) REFERENCES Sala(idSala),
     FOREIGN KEY (idPelicula) REFERENCES Pelicula(idPelicula)
 );
-
+go
 -- Trigger para inicializar capacidadDisponible en la función igual a la capacidad de la sala
 CREATE TRIGGER trg_set_capacidad_disponible
 ON Funcion
 AFTER INSERT
 AS
 BEGIN
-    UPDATE Funcion
-    SET capacidadDisponible = (SELECT capacidadSala FROM Sala WHERE Sala.idSala = Funcion.idSala)
-    FROM Funcion
-    JOIN inserted ON Funcion.idFuncion = inserted.idFuncion;
+    UPDATE f
+    SET f.capacidadDisponible = s.capacidadSala
+    FROM Funcion f
+    JOIN inserted i ON f.idFuncion = i.idFuncion
+    JOIN Sala s ON s.idSala = i.idSala;
 END;
-go
+GO
 
-go
 
 CREATE TABLE Entrada (
     idEntrada INT IDENTITY(1,1) PRIMARY KEY,
@@ -74,28 +74,6 @@ CREATE TABLE Entrada (
 );
 go
 
--- Trigger para validar la capacidad de la sala antes de insertar una entrada
-CREATE TRIGGER trg_validar_capacidad_funcion
-ON Entrada
-AFTER INSERT
-AS
-BEGIN
-    DECLARE @idFuncion INT, @cantidadEntradas INT;
-    SELECT @idFuncion = idFuncion, @cantidadEntradas = cantidadEntradas FROM inserted;
-    
-    IF (SELECT capacidadDisponible FROM Funcion WHERE idFuncion = @idFuncion) < @cantidadEntradas
-    BEGIN
-        RAISERROR ('La cantidad de entradas excede la capacidad disponible de la sala.', 16, 1);
-        ROLLBACK TRANSACTION;
-    END
-    ELSE
-    BEGIN
-        UPDATE Funcion
-        SET capacidadDisponible = capacidadDisponible - @cantidadEntradas
-        WHERE idFuncion = @idFuncion;
-    END
-END;
-go
 
 CREATE TABLE Asiento (
     idAsiento INT IDENTITY(1,1) PRIMARY KEY,
@@ -103,274 +81,264 @@ CREATE TABLE Asiento (
     asiento VARCHAR(10) NOT NULL, -- El número o identificador del asiento (por ejemplo, A1, B2)
     FOREIGN KEY (idEntrada) REFERENCES Entrada(idEntrada)
 );
-
+go
 -- Stored procedures de Sala
 -- CREATE: Insertar una nueva sala
-CREATE PROCEDURE sp_InsertarSala(
-    IN p_tipoSala VARCHAR(50), 
-    IN p_capacidadSala INT 
+CREATE PROCEDURE InsertarSala (
+    @tipoSala VARCHAR(50),
+    @capacidadSala INT
 )
+AS
 BEGIN
-    DECLARE EXIT HANDLER FOR SQLEXCEPTION
-    BEGIN
-        ROLLBACK;
-        SELECT 'Error en la inserción de sala' AS mensaje;
-    END;
-
-    START TRANSACTION;
-    INSERT INTO Sala (tipoSala, capacidadSala) 
-    VALUES (p_tipoSala, p_capacidadSala); 
-    COMMIT;
+    INSERT INTO Sala (tipoSala, capacidadSala)
+    VALUES (@tipoSala, @capacidadSala);
 END;
-GO
+go
 
--- READ: Obtener todos los datos de salas
-CREATE PROCEDURE sp_ObtenerSalas()
+-- READ: Obtener todas las salas
+CREATE PROCEDURE ObtenerSalas
+AS
 BEGIN
-    SELECT * FROM Sala;
+    SELECT idSala, tipoSala, capacidadSala
+    FROM Sala;
 END;
-GO
+go
 
 -- UPDATE: Actualizar una sala existente
-CREATE PROCEDURE sp_ActualizarSala(
-    IN p_idSala INT, 
-    IN p_tipoSala VARCHAR(50), 
-    IN p_capacidadSala INT 
+CREATE PROCEDURE ActualizarSala (
+    @idSala INT,
+    @tipoSala VARCHAR(50),
+    @capacidadSala INT
 )
+AS
 BEGIN
-    DECLARE EXIT HANDLER FOR SQLEXCEPTION
-    BEGIN
-        ROLLBACK;
-        SELECT 'Error en la actualización de sala' AS mensaje;
-    END;
-
-    START TRANSACTION;
-    UPDATE Sala 
-    SET tipoSala = p_tipoSala, capacidadSala = p_capacidadSala 
-    WHERE idSala = p_idSala;
-    COMMIT;
-END;
-GO
-
--- DELETE: Eliminar una sala
-CREATE PROCEDURE sp_EliminarSala(
-    IN p_idSala INT
-)
-BEGIN
-    DECLARE EXIT HANDLER FOR SQLEXCEPTION
-    BEGIN
-        ROLLBACK;
-        SELECT 'Error en la eliminación de sala' AS mensaje;
-    END;
-
-    START TRANSACTION;
-    DELETE FROM Sala WHERE idSala = p_idSala;
-    COMMIT;
+    UPDATE Sala
+    SET tipoSala = @tipoSala, capacidadSala = @capacidadSala
+    WHERE idSala = @idSala;
 END;
 GO
 
 --Stored procedures para Pelicula
 -- CREATE: Insertar una nueva película
-CREATE PROCEDURE sp_InsertarPelicula(
-    IN p_tituloPelicula VARCHAR(100),
-    IN p_generoPelicula VARCHAR(50),  
-    IN p_duracionPelicula INT, 
-    IN p_clasificacionPelicula VARCHAR(20) 
+CREATE PROCEDURE InsertarPelicula (
+    @tituloPelicula VARCHAR(100),
+    @generoPelicula VARCHAR(50),
+    @duracionPelicula INT,
+    @clasificacionPelicula VARCHAR(20)
 )
+AS
 BEGIN
-    DECLARE EXIT HANDLER FOR SQLEXCEPTION
-    BEGIN
-        ROLLBACK;
-        SELECT 'Error en la inserción de película' AS mensaje;
-    END;
-
-    START TRANSACTION;
-    INSERT INTO Pelicula (tituloPelicula, generoPelicula, duracionPelicula, clasificacionPelicula) 
-    VALUES (p_tituloPelicula, p_generoPelicula, p_duracionPelicula, p_clasificacionPelicula); 
-    COMMIT;
+    INSERT INTO Pelicula (tituloPelicula, generoPelicula, duracionPelicula, clasificacionPelicula)
+    VALUES (@tituloPelicula, @generoPelicula, @duracionPelicula, @clasificacionPelicula);
 END;
-GO
+go
+    
 
 -- READ: Obtener todos los datos de películas
-CREATE PROCEDURE sp_ObtenerPeliculas()
+CREATE PROCEDURE ObtenerPeliculas
+AS
 BEGIN
-    SELECT * FROM Pelicula;
+    SELECT idPelicula, tituloPelicula, generoPelicula, duracionPelicula, clasificacionPelicula
+    FROM Pelicula;
 END;
-GO
+go
 
 -- UPDATE: Actualizar una película existente
-CREATE PROCEDURE sp_ActualizarPelicula(
-    IN p_idPelicula INT, 
-    IN p_tituloPelicula VARCHAR(100), 
-    IN p_generoPelicula VARCHAR(50), 
-    IN p_duracionPelicula INT, 
-    IN p_clasificacionPelicula VARCHAR(20)
+CREATE PROCEDURE ActualizarPelicula (
+    @idPelicula INT,
+    @tituloPelicula VARCHAR(100),
+    @generoPelicula VARCHAR(50),
+    @duracionPelicula INT,
+    @clasificacionPelicula VARCHAR(20)
 )
+AS
 BEGIN
-    DECLARE EXIT HANDLER FOR SQLEXCEPTION
-    BEGIN
-        ROLLBACK;
-        SELECT 'Error en la actualización de película' AS mensaje;
-    END;
-
-    START TRANSACTION;
-    UPDATE Pelicula 
-    SET tituloPelicula = p_tituloPelicula, generoPelicula = p_generoPelicula, 
-        duracionPelicula = p_duracionPelicula, clasificacionPelicula = p_clasificacionPelicula
-    WHERE idPelicula = p_idPelicula; -- Corregido nombre de las columnas
-    COMMIT;
-END;
-GO
-
--- DELETE: Eliminar una película
-CREATE PROCEDURE sp_EliminarPelicula(
-    IN p_idPelicula INT
-)
-BEGIN
-    DECLARE EXIT HANDLER FOR SQLEXCEPTION
-    BEGIN
-        ROLLBACK;
-        SELECT 'Error en la eliminación de película' AS mensaje;
-    END;
-
-    START TRANSACTION;
-    DELETE FROM Pelicula WHERE idPelicula = p_idPelicula;
-    COMMIT;
+    UPDATE Pelicula
+    SET tituloPelicula = @tituloPelicula,
+        generoPelicula = @generoPelicula,
+        duracionPelicula = @duracionPelicula,
+        clasificacionPelicula = @clasificacionPelicula
+    WHERE idPelicula = @idPelicula;
 END;
 GO
 
 -- Stored Procedures para Cliente
 -- CREATE: Insertar un nuevo cliente
-CREATE PROCEDURE sp_InsertarCliente(
-    IN p_nombreCliente1 VARCHAR(50), 
-    IN p_nombreCliente2 VARCHAR(50), 
-    IN p_apellidoCliente1 VARCHAR(50), 
-    IN p_apellidoCliente2 VARCHAR(50), 
-    IN p_telefonoCliente VARCHAR(20), 
-    IN p_emailCliente VARCHAR(100) 
+CREATE PROCEDURE InsertarCliente (
+    @nombreCliente1 VARCHAR(50),
+    @nombreCliente2 VARCHAR(50),
+    @apellidoCliente1 VARCHAR(50),
+    @apellidoCliente2 VARCHAR(50),
+    @telefonoCliente VARCHAR(20),
+    @emailCliente VARCHAR(100)
 )
+AS
 BEGIN
-    DECLARE EXIT HANDLER FOR SQLEXCEPTION
-    BEGIN
-        ROLLBACK;
-        SELECT 'Error en la inserción de cliente' AS mensaje;
-    END;
-
-    START TRANSACTION;
-    INSERT INTO Cliente (nombreCliente1, nombreCliente2, apellidoCliente1, apellidoCliente2, telefonoCliente, emailCliente) 
-    VALUES (p_nombreCliente1, p_nombreCliente2, p_apellidoCliente1, p_apellidoCliente2, p_telefonoCliente, p_emailCliente); 
-    COMMIT;
+    INSERT INTO Cliente (nombreCliente1, nombreCliente2, apellidoCliente1, apellidoCliente2, telefonoCliente, emailCliente)
+    VALUES (@nombreCliente1, @nombreCliente2, @apellidoCliente1, @apellidoCliente2, @telefonoCliente, @emailCliente);
 END;
-GO
+go
+
+-- READ: Obtener todos los clientes
+CREATE PROCEDURE ObtenerClientes
+AS
+BEGIN
+    SELECT idCliente, nombreCliente1, nombreCliente2, apellidoCliente1, apellidoCliente2, telefonoCliente, emailCliente
+    FROM Cliente;
+END;
+go
+
+-- Actualizar un cliente
+CREATE PROCEDURE ActualizarCliente (
+    @idCliente INT,
+    @nombreCliente1 VARCHAR(50),
+    @nombreCliente2 VARCHAR(50),
+    @apellidoCliente1 VARCHAR(50),
+    @apellidoCliente2 VARCHAR(50),
+    @telefonoCliente VARCHAR(20),
+    @emailCliente VARCHAR(100)
+)
+AS
+BEGIN
+    UPDATE Cliente
+    SET nombreCliente1 = @nombreCliente1,
+        nombreCliente2 = @nombreCliente2,
+        apellidoCliente1 = @apellidoCliente1,
+        apellidoCliente2 = @apellidoCliente2,
+        telefonoCliente = @telefonoCliente,
+        emailCliente = @emailCliente
+    WHERE idCliente = @idCliente;
+END;
+go
 
 -- Stored procedures para Funcion
 -- CREATE: Insertar una nueva función
-CREATE PROCEDURE sp_InsertarFuncion(
-    IN p_idSala INT, 
-    IN p_idPelicula INT, 
-    IN p_fechaHora DATETIME
+CREATE PROCEDURE InsertarFuncion (
+    @idSala INT,
+    @idPelicula INT,
+    @fechaHoraFuncion DATETIME
 )
+AS
 BEGIN
-    DECLARE EXIT HANDLER FOR SQLEXCEPTION
-    BEGIN
-        ROLLBACK;
-        SELECT 'Error en la inserción de función' AS mensaje;
-    END;
-
-    START TRANSACTION;
-    INSERT INTO Funcion (idSala, idPelicula, fechaHora) 
-    VALUES (p_idSala, p_idPelicula, p_fechaHora);
-    COMMIT;
+    INSERT INTO Funcion (idSala, idPelicula, fechaHoraFuncion)
+    VALUES (@idSala, @idPelicula, @fechaHoraFuncion);
 END;
-GO
+go
 
 -- READ: Obtener todas las funciones
-CREATE PROCEDURE sp_ObtenerFunciones()
+CREATE PROCEDURE ObtenerFunciones
+AS
 BEGIN
-    SELECT * FROM Funcion;
+    SELECT f.idFuncion, f.fechaHoraFuncion, s.tipoSala, p.tituloPelicula
+    FROM Funcion f
+    JOIN Sala s ON f.idSala = s.idSala
+    JOIN Pelicula p ON f.idPelicula = p.idPelicula;
 END;
-GO
+go
 
--- UPDATE: Actualizar una función existente
-CREATE PROCEDURE sp_ActualizarFuncion(
-    IN p_idFuncion INT, 
-    IN p_idSala INT, 
-    IN p_idPelicula INT, 
-    IN p_fechaHora DATETIME
+-- UPDATE: Actualizar una función por película
+CREATE PROCEDURE ActualizarFuncion (
+    @idFuncion INT,
+    @idSala INT,
+    @idPelicula INT,
+    @fechaHoraFuncion DATETIME
 )
+AS
 BEGIN
-    DECLARE EXIT HANDLER FOR SQLEXCEPTION
-    BEGIN
-        ROLLBACK;
-        SELECT 'Error en la actualización de función' AS mensaje;
-    END;
-
-    START TRANSACTION;
-    UPDATE Funcion 
-    SET idSala = p_idSala, idPelicula = p_idPelicula, fechaHora = p_fechaHora
-    WHERE idFuncion = p_idFuncion;
-    COMMIT;
+    UPDATE Funcion
+    SET idSala = @idSala,
+        idPelicula = @idPelicula,
+        fechaHoraFuncion = @fechaHoraFuncion
+    WHERE idFuncion = @idFuncion;
 END;
-GO
+go
 
--- DELETE: Eliminar una función
-CREATE PROCEDURE sp_EliminarFuncion(
-    IN p_idFuncion INT
+-- Stored procedures para Entrada
+-- CREATE: Insertar una nueva entrada
+CREATE PROCEDURE InsertarEntrada (
+    @idFuncion INT,
+    @idCliente INT,
+    @precioEntrada DECIMAL(8, 2),
+    @cantidadEntradas INT
 )
+AS
 BEGIN
-    DECLARE EXIT HANDLER FOR SQLEXCEPTION
-    BEGIN
-        ROLLBACK;
-        SELECT 'Error en la eliminación de función' AS mensaje;
-    END;
-
-    START TRANSACTION;
-    DELETE FROM Funcion WHERE idFuncion = p_idFuncion;
-    COMMIT;
+    INSERT INTO Entrada (idFuncion, idCliente, precioEntrada, cantidadEntradas)
+    VALUES (@idFuncion, @idCliente, @precioEntrada, @cantidadEntradas);
 END;
 GO
+
+--READ: Obtener entradas de una función
+CREATE PROCEDURE ObtenerEntradasPorFuncion (
+    @idFuncion INT
+)
+AS
+BEGIN
+    SELECT 
+        e.idEntrada, 
+        e.idCliente, 
+        e.precioEntrada, 
+        e.cantidadEntradas, 
+        a.asiento  -- Obtenemos el número de asiento de la tabla Asiento
+    FROM Entrada e
+    JOIN Asiento a ON e.idEntrada = a.idEntrada  -- Realizamos el JOIN con la tabla Asiento
+    WHERE e.idFuncion = @idFuncion;  -- Filtramos por la función específica
+END;
+GO
+
+--UPDATE: Actualizar entrada
+CREATE PROCEDURE ActualizarEntrada (
+    @idEntrada INT,
+    @idFuncion INT,
+    @idCliente INT,
+    @precioEntrada DECIMAL(8, 2),
+    @cantidadEntradas INT
+)
+AS
+BEGIN
+    UPDATE Entrada
+    SET idFuncion = @idFuncion,
+        idCliente = @idCliente,
+        precioEntrada = @precioEntrada,
+        cantidadEntradas = @cantidadEntradas
+    WHERE idEntrada = @idEntrada;
+END;
+go
+
 
 -- Stored Procedures para Asiento
 -- CREATE: Insertar un nuevo asiento
-CREATE PROCEDURE sp_InsertarAsiento(
-    IN p_idEntrada INT, 
-    IN p_asiento VARCHAR(10)
+CREATE PROCEDURE InsertarAsiento (
+    @idEntrada INT,
+    @asiento VARCHAR(10)
 )
+AS
 BEGIN
-    DECLARE EXIT HANDLER FOR SQLEXCEPTION
-    BEGIN
-        ROLLBACK;
-        SELECT 'Error en la inserción de asiento' AS mensaje;
-    END;
-
-    START TRANSACTION;
-    INSERT INTO Asiento (idEntrada, asiento) 
-    VALUES (p_idEntrada, p_asiento);
-    COMMIT;
+    INSERT INTO Asiento (idEntrada, asiento)
+    VALUES (@idEntrada, @asiento);
 END;
-GO
+go
 
 -- READ: Obtener todos los asientos asignados
-CREATE PROCEDURE sp_ObtenerAsientos()
+CREATE PROCEDURE ObtenerAsientosPorEntrada (
+    @idEntrada INT
+)
+AS
 BEGIN
-    SELECT * FROM Asiento;
+    SELECT idAsiento, asiento
+    FROM Asiento
+    WHERE idEntrada = @idEntrada;
 END;
-GO
+go
 
 -- DELETE: Eliminar un asiento
-CREATE PROCEDURE sp_EliminarAsiento(
-    IN p_idAsiento INT
+CREATE PROCEDURE EliminarAsiento (
+    @idAsiento INT
 )
+AS
 BEGIN
-    DECLARE EXIT HANDLER FOR SQLEXCEPTION
-    BEGIN
-        ROLLBACK;
-        SELECT 'Error en la eliminación de asiento' AS mensaje;
-    END;
-
-    START TRANSACTION;
-    DELETE FROM Asiento WHERE idAsiento = p_idAsiento;
-    COMMIT;
+    DELETE FROM Asiento
+    WHERE idAsiento = @idAsiento;
 END;
 GO
 
@@ -386,6 +354,7 @@ INSERT INTO Sala (tipoSala, capacidadSala) VALUES
 ('Sala 8', 50),
 ('Sala 9', 90),
 ('Sala 10', 110);
+GO
 
 INSERT INTO Pelicula (tituloPelicula, generoPelicula, duracionPelicula, clasificacionPelicula) VALUES
 ('Deadpool & Wolverine', 'Acción', 127, 'R'),
@@ -398,6 +367,7 @@ INSERT INTO Pelicula (tituloPelicula, generoPelicula, duracionPelicula, clasific
 ('The Dark Knight', 'Acción/Crimen', 152, 'PG-13'),
 ('Forrest Gump', 'Drama/Romance', 142, 'PG-13'),
 ('Matrix', 'Ciencia ficción', 136, 'R');
+GO
 
 INSERT INTO Cliente (nombreCliente1, nombreCliente2, apellidoCliente1, apellidoCliente2, telefonoCliente, emailCliente) VALUES
 ('Juan', 'Carlos', 'Pérez', 'García', '1155710020', 'juan.perez@gmail.com'),
@@ -410,6 +380,8 @@ INSERT INTO Cliente (nombreCliente1, nombreCliente2, apellidoCliente1, apellidoC
 ('Carlos', NULL, 'Torres', NULL, '1165421987', 'carlostorres@gmail.com'),
 ('Raquel', 'Marina', 'Vázquez', NULL, '1132154857', 'raquelvazquez@hotmail.com.ar'),
 ('Agustín', NULL, 'López', NULL, '654987321', 'aguslopez@gmail.com');
+GO
+
 
 INSERT INTO Funcion (idSala, idPelicula, fechaHoraFuncion) VALUES
 (1, 1, '2024-11-07 14:00:00'),
@@ -422,6 +394,7 @@ INSERT INTO Funcion (idSala, idPelicula, fechaHoraFuncion) VALUES
 (8, 8, '2024-11-08 20:00:00'),
 (9, 9, '2024-11-09 14:00:00'),
 (10, 10, '2024-11-09 16:00:00');
+GO
 
 INSERT INTO Entrada (idFuncion, idCliente, precioEntrada, cantidadEntradas) VALUES
 (1, 1, 10.00, 2),
@@ -434,6 +407,7 @@ INSERT INTO Entrada (idFuncion, idCliente, precioEntrada, cantidadEntradas) VALU
 (8, 8, 16.50, 3),
 (9, 9, 14.00, 1),
 (10, 10, 19.00, 4);
+GO
 
 INSERT INTO Asiento (idEntrada, asiento) VALUES
 (1, 'A1'),
@@ -446,6 +420,7 @@ INSERT INTO Asiento (idEntrada, asiento) VALUES
 (4, 'D2'),
 (5, 'E1'),
 (6, 'F1');
+GO
 
 --CONSULTAS PARA EL FUNCIONAMIENTO DEL SISTEMA
 
@@ -480,15 +455,15 @@ SELECT f.idFuncion, f.fechaHoraFuncion, s.tipoSala, p.tituloPelicula
 FROM Funcion f
 JOIN Sala s ON f.idSala = s.idSala
 JOIN Pelicula p ON f.idPelicula = p.idPelicula
-WHERE DATE(f.fechaHoraFuncion) = '2024-11-07'; 
+WHERE CAST(f.fechaHoraFuncion AS DATE) = '2024-11-07'
 
 -- Entradas disponibles para una función
-SELECT f.idFuncion, SUM(e.cantidadEntradas) AS entradasVendidas, s.capacidadSala - SUM(e.cantidadEntradas) AS entradasDisponibles
+SELECT f.idFuncion, f.fechaHoraFuncion, SUM(e.cantidadEntradas) AS entradasVendidas, s.capacidadSala - SUM(e.cantidadEntradas) AS entradasDisponibles
 FROM Entrada e
 JOIN Funcion f ON e.idFuncion = f.idFuncion
 JOIN Sala s ON f.idSala = s.idSala
 WHERE f.idFuncion = 2 
-GROUP BY f.idFuncion, s.capacidadSala;
+GROUP BY f.idFuncion, f.fechaHoraFuncion, s.capacidadSala; 
 
 -- Información clientes que compraron entradas para una función
 SELECT c.nombreCliente1, c.nombreCliente2, c.apellidoCliente1, c.apellidoCliente2, e.precioEntrada, e.cantidadEntradas, a.asiento
@@ -513,9 +488,12 @@ JOIN Pelicula p ON f.idPelicula = p.idPelicula
 WHERE p.tituloPelicula = 'Deadpool & Wolverine' AND f.fechaHoraFuncion BETWEEN '2024-11-01' AND '2024-11-30';
 
 -- Total recaudado por una función
-SELECT SUM(e.precioEntrada * e.cantidadEntradas) AS totalRecaudado
+SELECT p.tituloPelicula, 
+       SUM(e.precioEntrada * e.cantidadEntradas) AS totalRecaudado
 FROM Entrada e
-WHERE e.idFuncion = 1; 
+JOIN Pelicula p ON e.idPelicula = p.idPelicula
+WHERE e.idFuncion = 1
+GROUP BY p.tituloPelicula;
 
 -- Funciones de una sala específica
 SELECT f.idFuncion, f.fechaHoraFuncion, p.tituloPelicula
@@ -530,13 +508,4 @@ JOIN Funcion f ON e.idFuncion = f.idFuncion
 JOIN Pelicula p ON f.idPelicula = p.idPelicula
 GROUP BY p.tituloPelicula
 ORDER BY totalEntradasVendidas DESC;
-
-
-
-
-
-
-
-
-
-
+GO
