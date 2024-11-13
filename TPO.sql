@@ -1,10 +1,9 @@
-CREATE DATABASE Cine
+CREATE DATABASE CinePrueba
 
-USE Cine
+USE CinePrueba
 
 CREATE TABLE Sala (
     idSala INT IDENTITY(1,1) PRIMARY KEY,
-	numeroSala INT NOT NULL,
     tipoSala VARCHAR(50) NOT NULL,
     capacidadSala INT NOT NULL CHECK (capacidadSala > 0)
 );
@@ -37,7 +36,6 @@ CREATE TABLE Funcion (
     fechaHoraFuncion DATETIME NOT NULL,
     FOREIGN KEY (idSala) REFERENCES Sala(idSala),
     FOREIGN KEY (idPelicula) REFERENCES Pelicula(IdPelicula)
-    CONSTRAINT UQ_Sala_FechaHoraFuncion UNIQUE (idSala, fechaHoraFuncion) -- Evitar funciones duplicadas en la misma sala y horario
 );
 GO
 
@@ -80,14 +78,13 @@ GO
 -- Stored procedures de Sala
 -- CREATE: Insertar una nueva sala
 CREATE PROCEDURE InsertarSala (
-	@numeroSala INT,
     @tipoSala VARCHAR(50),
     @capacidadSala INT
 )
 AS
 BEGIN
-    INSERT INTO Sala (numeroSala, tipoSala, capacidadSala)
-    VALUES (@numeroSala, @tipoSala, @capacidadSala);
+    INSERT INTO Sala (tipoSala, capacidadSala)
+    VALUES (@tipoSala, @capacidadSala);
 END;
 go
 
@@ -95,7 +92,7 @@ go
 CREATE PROCEDURE ObtenerSalas
 AS
 BEGIN
-    SELECT idSala, numeroSala, tipoSala, capacidadSala
+    SELECT idSala, tipoSala, capacidadSala
     FROM Sala;
 END;
 go
@@ -103,14 +100,13 @@ go
 -- UPDATE: Actualizar una sala existente
 CREATE PROCEDURE ActualizarSala (
     @idSala INT,
-	@numeroSala INT,
     @tipoSala VARCHAR(50),
     @capacidadSala INT
 )
 AS
 BEGIN
     UPDATE Sala
-    SET tipoSala = @tipoSala, numeroSala = @numeroSala, capacidadSala = @capacidadSala
+    SET tipoSala = @tipoSala, capacidadSala = @capacidadSala
     WHERE idSala = @idSala;
 END;
 GO
@@ -341,16 +337,16 @@ GO
 
 -- Inserción de datos para cada tabla
 
-EXEC InsertarSala 1, '2D', 100;
-EXEC InsertarSala 2, '3D', 120;
-EXEC InsertarSala 3, '3D', 80;
-EXEC InsertarSala 4, '3D', 150;
-EXEC InsertarSala 5, '2D', 200;
-EXEC InsertarSala 6, '2D', 250;
-EXEC InsertarSala 7, '3D', 180;
-EXEC InsertarSala 8, '2D', 50;
-EXEC InsertarSala 9, '3D', 90;
-EXEC InsertarSala 10,'IMAX', 110;
+EXEC InsertarSala '2D', 100;
+EXEC InsertarSala '3D', 120;
+EXEC InsertarSala '3D', 80;
+EXEC InsertarSala '3D', 150;
+EXEC InsertarSala '2D', 200;
+EXEC InsertarSala '2D', 250;
+EXEC InsertarSala '3D', 180;
+EXEC InsertarSala '2D', 50;
+EXEC InsertarSala '3D', 90;
+EXEC InsertarSala 'IMAX', 110;
 GO
 
 INSERT INTO Pelicula (tituloPelicula, generoPelicula, duracionPelicula, clasificacionPelicula) VALUES
@@ -422,7 +418,7 @@ GO
 --CONSULTAS PARA EL FUNCIONAMIENTO DEL SISTEMA
 
 -- Todas las funciones de una película específica
-SELECT f.idFuncion, f.fechaHoraFuncion, s.numeroSala, s.capacidadSala, p.tituloPelicula
+SELECT f.idFuncion, f.fechaHoraFuncion, s.capacidadSala, p.tituloPelicula
 FROM Funcion f
 JOIN Sala s ON f.idSala = s.idSala
 JOIN Pelicula p ON f.idPelicula = p.idPelicula
@@ -450,7 +446,7 @@ JOIN Pelicula p ON f.idPelicula = p.idPelicula
 WHERE e.idCliente = 3;
 
 -- Funciones programadas para un determinado día
-SELECT f.idFuncion, f.fechaHoraFuncion, s.numeroSala, s.tipoSala, p.tituloPelicula
+SELECT f.idFuncion, f.fechaHoraFuncion, s.tipoSala, p.tituloPelicula
 FROM Funcion f
 JOIN Sala s ON f.idSala = s.idSala
 JOIN Pelicula p ON f.idPelicula = p.idPelicula
@@ -480,7 +476,7 @@ JOIN Pelicula p ON f.idPelicula = p.idPelicula
 GROUP BY p.tituloPelicula;
 
 -- Funciones de una película en un intervalo de fechas
-SELECT f.idFuncion, f.fechaHoraFuncion, s.numeroSala, s.tipoSala
+SELECT f.idFuncion, f.fechaHoraFuncion, s.tipoSala
 FROM Funcion f
 JOIN Sala s ON f.idSala = s.idSala
 JOIN Pelicula p ON f.idPelicula = p.idPelicula
