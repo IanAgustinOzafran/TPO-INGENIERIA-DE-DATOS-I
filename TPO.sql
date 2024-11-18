@@ -1,6 +1,6 @@
-CREATE DATABASE CinePrueba
+CREATE DATABASE Cine3
 
-USE CinePrueba
+USE Cine3
 
 CREATE TABLE Sala (
     idSala INT IDENTITY(1,1) PRIMARY KEY,
@@ -25,7 +25,7 @@ CREATE TABLE Cliente (
     apellidoCliente1 VARCHAR(50) NOT NULL,
     apellidoCliente2 VARCHAR(50),
     telefonoCliente VARCHAR(20),
-    emailCliente VARCHAR(100) UNIQUE -- Para evitar emails duplicados
+    emailCliente VARCHAR(100) UNIQUE
 );
 GO
 
@@ -34,8 +34,8 @@ CREATE TABLE Funcion (
     idSala INT NOT NULL,
     idPelicula INT NOT NULL,
     fechaHoraFuncion DATETIME NOT NULL,
-    FOREIGN KEY (idSala) REFERENCES Sala(idSala),
-    FOREIGN KEY (idPelicula) REFERENCES Pelicula(IdPelicula)
+    FOREIGN KEY (idSala) REFERENCES Sala(idSala) ON DELETE CASCADE ON UPDATE CASCADE,
+    FOREIGN KEY (idPelicula) REFERENCES Pelicula(IdPelicula) ON DELETE CASCADE ON UPDATE CASCADE
 );
 GO
 
@@ -45,17 +45,17 @@ CREATE TABLE Entrada (
     idCliente INT NOT NULL,
     precioEntrada DECIMAL(8, 2) NOT NULL CHECK (precioEntrada >= 0), 
     cantidadEntradas INT NOT NULL CHECK (cantidadEntradas > 0),
-    FOREIGN KEY (idFuncion) REFERENCES Funcion(idFuncion),
-    FOREIGN KEY (idCliente) REFERENCES Cliente(idCliente)
+    FOREIGN KEY (idFuncion) REFERENCES Funcion(idFuncion) ON DELETE CASCADE ON UPDATE CASCADE,
+    FOREIGN KEY (idCliente) REFERENCES Cliente(idCliente) ON DELETE CASCADE ON UPDATE CASCADE
 );
 GO
 
 CREATE TABLE Asiento (
     idAsiento INT IDENTITY(1,1) PRIMARY KEY,
     idEntrada INT NOT NULL,
-    asiento VARCHAR(10) NOT NULL, -- El número o identificador del asiento (por ejemplo, A1, B2)
-    FOREIGN KEY (idEntrada) REFERENCES Entrada(idEntrada),
-    CONSTRAINT UQ_Asiento_Entrada UNIQUE (idEntrada, asiento) -- Evitar duplicados de asiento en la misma entrada
+    asiento VARCHAR(10) NOT NULL,
+    FOREIGN KEY (idEntrada) REFERENCES Entrada(idEntrada) ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT UQ_Asiento_Entrada UNIQUE (idEntrada, asiento)
 );
 GO
 
@@ -69,6 +69,60 @@ BEGIN
     IF EXISTS (SELECT * FROM inserted WHERE duracionPelicula < 30)
     BEGIN
         RAISERROR ('La duración de la película debe ser de al menos 30 minutos.', 16, 1);
+        ROLLBACK TRANSACTION;
+    END
+END;
+GO
+
+-- Trigger para verificar disponibilidad de asientos antes de insertar un nuevo asiento
+CREATE TRIGGER trg_verificar_asiento_unico
+ON Asiento
+INSTEAD OF INSERT
+AS
+BEGIN
+    IF EXISTS (
+        SELECT 1
+        FROM Asiento a
+        JOIN inserted i
+        ON a.idEntrada = i.idEntrada AND a.asiento = i.asiento
+    )
+    BEGIN
+        RAISERROR ('El asiento ya está ocupado para esta entrada.', 16, 1);
+    END
+    ELSE
+    BEGIN
+        INSERT INTO Asiento (idEntrada, asiento)
+        SELECT idEntrada, asiento
+        FROM inserted;
+    END
+END;
+GO
+
+--Trigger para validar capacidad de la sala antes de insertar una nueva función
+CREATE TRIGGER trg_validar_capacidad_sala
+ON Entrada
+AFTER INSERT, UPDATE
+AS
+BEGIN
+    DECLARE @idFuncion INT, @cantidadEntradas INT, @idSala INT, @capacidadSala INT;
+
+    SELECT @idFuncion = idFuncion, @cantidadEntradas = cantidadEntradas
+    FROM inserted;
+
+    SELECT @idSala = f.idSala
+    FROM Funcion f
+    WHERE f.idFuncion = @idFuncion;
+
+    SELECT @capacidadSala = s.capacidadSala
+    FROM Sala s
+    WHERE s.idSala = @idSala;
+
+    -- Validamos la suma de entradas actuales con la nueva cantidad
+    IF (SELECT SUM(e.cantidadEntradas) 
+        FROM Entrada e 
+        WHERE e.idFuncion = @idFuncion) > @capacidadSala
+    BEGIN
+        RAISERROR ('La cantidad total de entradas supera la capacidad de la sala.', 16, 1);
         ROLLBACK TRANSACTION;
     END
 END;
@@ -229,6 +283,7 @@ BEGIN
 END;
 go
 
+
 -- UPDATE: Actualizar una función por película
 CREATE PROCEDURE ActualizarFuncion (
     @idFuncion INT,
@@ -337,6 +392,7 @@ GO
 
 -- Inserción de datos para cada tabla
 
+
 EXEC InsertarSala '2D', 100;
 EXEC InsertarSala '3D', 120;
 EXEC InsertarSala '3D', 80;
@@ -348,6 +404,8 @@ EXEC InsertarSala '2D', 50;
 EXEC InsertarSala '3D', 90;
 EXEC InsertarSala 'IMAX', 110;
 GO
+
+
 
 INSERT INTO Pelicula (tituloPelicula, generoPelicula, duracionPelicula, clasificacionPelicula) VALUES
 ('Deadpool & Wolverine', 'Acción', 127, 'R'),
@@ -423,19 +481,26 @@ FROM Funcion f
 JOIN Sala s ON f.idSala = s.idSala
 JOIN Pelicula p ON f.idPelicula = p.idPelicula
 WHERE p.tituloPelicula = 'Deadpool & Wolverine';
+go
 
 -- Entradas de un cliente en específico 
-SELECT e.idEntrada, f.fechaHoraFuncion, p.tituloPelicula, e.precioEntrada, e.cantidadEntradas, a.asiento
+SELECT e.idEntrada, c.NombreCliente1, c.apellidoCliente1, f.fechaHoraFuncion, p.tituloPelicula, e.precioEntrada, e.cantidadEntradas, a.asiento
 FROM Entrada e
 JOIN Funcion f ON e.idFuncion = f.idFuncion
 JOIN Pelicula p ON f.idPelicula = p.idPelicula
 JOIN Asiento a ON e.idEntrada = a.idEntrada
+JOIN Cliente c ON e.idCliente= c.idCliente
 WHERE e.idCliente = 2; 
+go
 
 -- Consultar todos los asientos de una entrada específica
-SELECT a.asiento
+SELECT a.asiento, s.idSala AS NumeroSala, f.FechaHoraFuncion
 FROM Asiento a
+JOIN Entrada e ON a.idEntrada = e.idEntrada
+JOIN Funcion f ON e.idFuncion = f.idFuncion
+JOIN Sala s ON f.idSala = s.idSala
 WHERE a.idEntrada = 2;
+go
 
 -- Historial funciones de un cliente
 SELECT f.fechaHoraFuncion, a.asiento, p.tituloPelicula
@@ -444,13 +509,15 @@ JOIN Funcion f ON e.idFuncion = f.idFuncion
 JOIN Asiento a ON e.idEntrada = a.idEntrada
 JOIN Pelicula p ON f.idPelicula = p.idPelicula
 WHERE e.idCliente = 3;
+go
 
 -- Funciones programadas para un determinado día
-SELECT f.idFuncion, f.fechaHoraFuncion, s.tipoSala, p.tituloPelicula
+SELECT f.idFuncion, f.fechaHoraFuncion, s.idSala AS NumeroSala, s.tipoSala, p.tituloPelicula
 FROM Funcion f
 JOIN Sala s ON f.idSala = s.idSala
 JOIN Pelicula p ON f.idPelicula = p.idPelicula
 WHERE CAST(f.fechaHoraFuncion AS DATE) = '2024-11-07'
+go
 
 -- Entradas disponibles para una función
 SELECT f.idFuncion, f.fechaHoraFuncion, SUM(e.cantidadEntradas) AS entradasVendidas, s.capacidadSala - SUM(e.cantidadEntradas) AS entradasDisponibles
@@ -459,6 +526,7 @@ JOIN Funcion f ON e.idFuncion = f.idFuncion
 JOIN Sala s ON f.idSala = s.idSala
 WHERE f.idFuncion = 2 
 GROUP BY f.idFuncion, f.fechaHoraFuncion, s.capacidadSala; 
+go
 
 -- Información clientes que compraron entradas para una función
 SELECT c.nombreCliente1, c.nombreCliente2, c.apellidoCliente1, c.apellidoCliente2, e.precioEntrada, e.cantidadEntradas, a.asiento
@@ -467,6 +535,7 @@ JOIN Cliente c ON e.idCliente = c.idCliente
 JOIN Asiento a ON e.idEntrada = a.idEntrada
 JOIN Funcion f ON e.idFuncion = f.idFuncion
 WHERE f.idFuncion = 1; 
+go
 
 -- Cantidad de entradas vendidas por película
 SELECT p.tituloPelicula, SUM(e.cantidadEntradas) AS totalEntradasVendidas
@@ -474,13 +543,15 @@ FROM Entrada e
 JOIN Funcion f ON e.idFuncion = f.idFuncion
 JOIN Pelicula p ON f.idPelicula = p.idPelicula
 GROUP BY p.tituloPelicula;
+go
 
 -- Funciones de una película en un intervalo de fechas
-SELECT f.idFuncion, f.fechaHoraFuncion, s.tipoSala
+SELECT f.idFuncion, f.fechaHoraFuncion, s.idSala as NumeroSala, s.tipoSala
 FROM Funcion f
 JOIN Sala s ON f.idSala = s.idSala
 JOIN Pelicula p ON f.idPelicula = p.idPelicula
 WHERE p.tituloPelicula = 'Deadpool & Wolverine' AND f.fechaHoraFuncion BETWEEN '2024-11-01' AND '2024-11-30';
+go
 
 -- Total recaudado por una función
 SELECT p.tituloPelicula, 
@@ -490,12 +561,15 @@ JOIN Funcion f ON e.idFuncion = f.idFuncion
 JOIN Pelicula p ON f.idPelicula = p.idPelicula
 WHERE e.idFuncion = 1
 GROUP BY p.tituloPelicula;
+go
 
 -- Funciones de una sala específica
-SELECT f.idFuncion, f.fechaHoraFuncion, p.tituloPelicula
+SELECT f.idFuncion, s.idSala AS NumeroSala, f.fechaHoraFuncion, p.tituloPelicula
 FROM Funcion f
 JOIN Pelicula p ON f.idPelicula = p.idPelicula
+JOIN Sala s ON f.idSala = s.idSala
 WHERE f.idSala = 1; 
+go
 
 -- Películas más vistas
 SELECT p.tituloPelicula, SUM(e.cantidadEntradas) AS totalEntradasVendidas
