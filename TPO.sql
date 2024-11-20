@@ -1,6 +1,6 @@
-CREATE DATABASE Cine3
+CREATE DATABASE Cine6
 
-USE Cine3
+USE Cine6
 
 CREATE TABLE Sala (
     idSala INT IDENTITY(1,1) PRIMARY KEY,
@@ -67,7 +67,7 @@ AFTER INSERT, UPDATE
 AS
 BEGIN
     IF EXISTS (SELECT * FROM inserted WHERE duracionPelicula < 30)
-    BEGIN
+    BEGIN		
         RAISERROR ('La duración de la película debe ser de al menos 30 minutos.', 16, 1);
         ROLLBACK TRANSACTION;
     END
@@ -209,6 +209,36 @@ BEGIN
 END;
 GO
 
+-- DELETE: Eliminar película
+CREATE PROCEDURE EliminarPelicula
+    @idPelicula INT
+AS
+BEGIN
+    BEGIN TRY
+        BEGIN TRANSACTION;
+
+        -- Verificar si la película está asociada a alguna función
+        IF EXISTS (SELECT 1 FROM Funcion WHERE idPelicula = @idPelicula)
+        BEGIN
+            -- Eliminar las funciones asociadas
+            DELETE FROM Funcion WHERE idPelicula = @idPelicula;
+        END
+
+        -- Eliminar la película de la tabla Pelicula
+        DELETE FROM Pelicula WHERE idPelicula = @idPelicula;
+
+        COMMIT TRANSACTION;
+        PRINT 'Película eliminada con éxito.';
+    END TRY
+    BEGIN CATCH
+        ROLLBACK TRANSACTION;
+        PRINT 'Ocurrió un error durante la eliminación de la película.';
+        THROW;
+    END CATCH
+END;
+GO
+
+
 -- Stored Procedures para Cliente
 -- CREATE: Insertar un nuevo cliente
 CREATE PROCEDURE InsertarCliente (
@@ -301,6 +331,35 @@ BEGIN
 END;
 go
 
+--DELETE: Eliminar una funcion
+CREATE PROCEDURE EliminarFuncion
+    @idFuncion INT
+AS
+BEGIN
+    BEGIN TRY
+        BEGIN TRANSACTION;
+
+        IF NOT EXISTS (SELECT 1 FROM Funcion WHERE idFuncion = @idFuncion)-- Verificar si la función existe
+        BEGIN
+            PRINT 'La función no existe.';
+            ROLLBACK TRANSACTION;
+            RETURN;
+        END
+
+        DELETE FROM Funcion WHERE idFuncion = @idFuncion;-- Eliminar la función
+
+        COMMIT TRANSACTION;
+        PRINT 'Función eliminada con éxito.';
+    END TRY
+    BEGIN CATCH
+        ROLLBACK TRANSACTION;
+        PRINT 'Ocurrió un error durante la eliminación de la función.';
+        THROW;
+    END CATCH
+END;
+GO
+
+
 -- Stored procedures para Entrada
 -- CREATE: Insertar una nueva entrada
 CREATE PROCEDURE InsertarEntrada (
@@ -327,10 +386,10 @@ BEGIN
         e.idCliente, 
         e.precioEntrada, 
         e.cantidadEntradas, 
-        a.asiento  -- Obtenemos el número de asiento de la tabla Asiento
+        a.asiento 
     FROM Entrada e
-    JOIN Asiento a ON e.idEntrada = a.idEntrada  -- Realizamos el JOIN con la tabla Asiento
-    WHERE e.idFuncion = @idFuncion;  -- Filtramos por la función específica
+    JOIN Asiento a ON e.idEntrada = a.idEntrada 
+    WHERE e.idFuncion = @idFuncion; 
 END;
 GO
 
@@ -407,175 +466,294 @@ GO
 
 
 
-INSERT INTO Pelicula (tituloPelicula, generoPelicula, duracionPelicula, clasificacionPelicula) VALUES
-('Deadpool & Wolverine', 'Acción', 127, 'R'),
-('Avengers: Endgame', 'Acción', 181, 'PG-13'),
-('Titanic', 'Drama/Romance', 195, 'PG-13'),
-('El Rey León', 'Animación/Aventura', 88, 'G'),
-('Inception', 'Ciencia ficción', 148, 'PG-13'),
-('El Padrino', 'Crimen/Drama', 175, 'R'),
-('Jurassic Park', 'Ciencia ficción/Aventura', 127, 'PG-13'),
-('The Dark Knight', 'Acción/Crimen', 152, 'PG-13'),
-('Forrest Gump', 'Drama/Romance', 142, 'PG-13'),
-('Matrix', 'Ciencia ficción', 136, 'R');
+EXEC InsertarPelicula 'Deadpool & Wolverine', 'Acción', 127, 'R';
+EXEC InsertarPelicula 'Avengers: Endgame', 'Acción', 181, 'PG-13';
+EXEC InsertarPelicula 'Titanic', 'Drama/Romance', 195, 'PG-13';
+EXEC InsertarPelicula 'El Rey León', 'Animación/Aventura', 88, 'G';
+EXEC InsertarPelicula 'Inception', 'Ciencia ficción', 148, 'PG-13';
+EXEC InsertarPelicula 'El Padrino', 'Crimen/Drama', 175, 'R';
+EXEC InsertarPelicula 'Jurassic Park', 'Ciencia ficción/Aventura', 127, 'PG-13';
+EXEC InsertarPelicula 'The Dark Knight', 'Acción/Crimen', 152, 'PG-13';
+EXEC InsertarPelicula 'Forrest Gump', 'Drama/Romance', 142, 'PG-13';
+EXEC InsertarPelicula 'Matrix', 'Ciencia ficción', 136, 'R';
+
 GO
 
-INSERT INTO Cliente (nombreCliente1, nombreCliente2, apellidoCliente1, apellidoCliente2, telefonoCliente, emailCliente) VALUES
-('Juan', 'Carlos', 'Pérez', 'García', '1155710020', 'juan.perez@gmail.com'),
-('Ana', 'María', 'López', NULL, '1130034777', 'analopez@hotmail.com.ar'),
-('Luis', NULL, 'Gómez', 'Martínez', '1197456560', 'luisgomez@gmail.com'),
-('Pedro', 'Alejandro', 'Ramírez', NULL, '1102326980', 'pedro.r@gmail.com'),
-('Laura', NULL, 'Fernández', 'Flores', '1123987456', 'laurafer@hotmail.com.ar'),
-('Pablo', NULL, 'Hernández', 'Suárez', '1198765432', 'pablohernandez@gmail.com'),
-('Elena', 'Sofía', 'Díaz', 'Villalba', '1187653210', 'elena.diaz.villalba@hotmail.com.ar'),
-('Carlos', NULL, 'Torres', NULL, '1165421987', 'carlostorres@gmail.com'),
-('Raquel', 'Marina', 'Vázquez', NULL, '1132154857', 'raquelvazquez@hotmail.com.ar'),
-('Agustín', NULL, 'López', NULL, '654987321', 'aguslopez@gmail.com');
+EXEC InsertarCliente 'Juan', 'Carlos', 'Pérez', 'García', '1155710020', 'juan.perez@gmail.com';
+EXEC InsertarCliente 'Ana', 'María', 'López', NULL, '1130034777', 'analopez@hotmail.com.ar';
+EXEC InsertarCliente 'Luis', NULL, 'Gómez', 'Martínez', '1197456560', 'luisgomez@gmail.com';
+EXEC InsertarCliente 'Pedro', 'Alejandro', 'Ramírez', NULL, '1102326980', 'pedro.r@gmail.com';
+EXEC InsertarCliente 'Laura', NULL, 'Fernández', 'Flores', '1123987456', 'laurafer@hotmail.com.ar';
+EXEC InsertarCliente 'Pablo', NULL, 'Hernández', 'Suárez', '1198765432', 'pablohernandez@gmail.com';
+EXEC InsertarCliente 'Elena', 'Sofía', 'Díaz', 'Villalba', '1187653210', 'elena.diaz.villalba@hotmail.com.ar';
+EXEC InsertarCliente 'Carlos', NULL, 'Torres', NULL, '1165421987', 'carlostorres@gmail.com';
+EXEC InsertarCliente 'Raquel', 'Marina', 'Vázquez', NULL, '1132154857', 'raquelvazquez@hotmail.com.ar';
+EXEC InsertarCliente 'Agustín', NULL, 'López', NULL, '654987321', 'aguslopez@gmail.com';
+EXEC InsertarCliente 'Martín', NULL, 'González', 'Pérez', '1151234567', 'martin.g@gmail.com';
+EXEC InsertarCliente 'Carla', 'María', 'Rodríguez', NULL, '1145671234', 'carlamr@hotmail.com';
+EXEC InsertarCliente 'Facundo', 'Emiliano', 'Sánchez', 'Domínguez', '1198765432', 'facu_sanchez@gmail.com';
+EXEC InsertarCliente 'Rocío', NULL, 'Fernández', NULL, '1165432198', 'rocio.fernandez@gmail.com';
+EXEC InsertarCliente 'Julieta', 'Estefanía', 'Díaz', 'López', '1132145678', 'julietad@hotmail.com';
+EXEC InsertarCliente 'Tomás', NULL, 'Pereyra', 'Silva', '1123456789', 'tomasp@gmail.com';
+EXEC InsertarCliente 'Lucía', 'Sofía', 'Martínez', 'Cruz', '1145678912', 'lucia.mc@hotmail.com';
+EXEC InsertarCliente 'Santiago', 'Andrés', 'Vázquez', NULL, '1156781234', 'santiago.v@gmail.com';
+EXEC InsertarCliente 'Camila', NULL, 'Torres', NULL, '1167891234', 'camila.t@gmail.com';
+EXEC InsertarCliente 'Matías', 'Federico', 'Gómez', 'Ruiz', '1191234567', 'matias.g@gmail.com';
+
 GO
 
 
-INSERT INTO Funcion (idSala, idPelicula, fechaHoraFuncion) VALUES
-(1, 1, '2024-11-07 14:00:00'),
-(2, 2, '2024-11-07 16:00:00'),
-(3, 3, '2024-11-07 18:00:00'),
-(4, 4, '2024-11-07 20:00:00'),
-(5, 5, '2024-11-08 14:00:00'),
-(6, 6, '2024-11-08 16:00:00'),
-(7, 7, '2024-11-08 18:00:00'),
-(8, 8, '2024-11-08 20:00:00'),
-(9, 9, '2024-11-09 14:00:00'),
-(10, 10, '2024-11-09 16:00:00');
+EXEC InsertarFuncion 2, 1, '2024-11-07 11:00:00'; -- Deadpool & Wolverine en Sala 2D
+EXEC InsertarFuncion 3, 2, '2024-11-07 13:00:00'; -- Avengers: Endgame en Sala 3D
+EXEC InsertarFuncion 4, 3, '2024-11-07 17:00:00'; -- Titanic en Sala 2D
+EXEC InsertarFuncion 5, 4, '2024-11-07 19:30:00'; -- El Rey León en Sala 3D
+EXEC InsertarFuncion 6, 5, '2024-11-07 21:30:00'; -- Inception en Sala 2D
+EXEC InsertarFuncion 7, 6, '2024-11-08 10:00:00'; -- El Padrino en Sala 3D
+EXEC InsertarFuncion 8, 7, '2024-11-08 12:30:00'; -- Jurassic Park en Sala 2D
+EXEC InsertarFuncion 9, 8, '2024-11-08 16:00:00'; -- The Dark Knight en Sala 3D
+EXEC InsertarFuncion 10, 9, '2024-11-08 18:30:00'; -- Forrest Gump en Sala 2D
+EXEC InsertarFuncion 2, 10, '2024-11-08 20:30:00'; -- Matrix en Sala IMAX
+
+EXEC InsertarFuncion 3, 1, '2024-11-09 11:00:00'; -- Deadpool & Wolverine en Sala 2D
+EXEC InsertarFuncion 4, 2, '2024-11-09 13:00:00'; -- Avengers: Endgame en Sala 3D
+EXEC InsertarFuncion 5, 3, '2024-11-09 15:30:00'; -- Titanic en Sala 2D
+EXEC InsertarFuncion 6, 4, '2024-11-09 18:00:00'; -- El Rey León en Sala 3D
+EXEC InsertarFuncion 7, 5, '2024-11-09 20:30:00'; -- Inception en Sala 2D
+EXEC InsertarFuncion 8, 6, '2024-11-10 14:00:00'; -- El Padrino en Sala 3D
+EXEC InsertarFuncion 9, 7, '2024-11-10 16:30:00'; -- Jurassic Park en Sala 2D
+EXEC InsertarFuncion 10, 8, '2024-11-10 19:00:00'; -- The Dark Knight en Sala 3D
+EXEC InsertarFuncion 2, 9, '2024-11-10 21:00:00'; -- Forrest Gump en Sala 2D
+EXEC InsertarFuncion 3, 10, '2024-11-11 14:30:00'; -- Matrix en Sala IMAX
+
+EXEC InsertarFuncion 4, 1, '2024-11-12 11:00:00'; -- Deadpool & Wolverine en Sala 2D
+EXEC InsertarFuncion 5, 2, '2024-11-12 13:30:00'; -- Avengers: Endgame en Sala 3D
+EXEC InsertarFuncion 6, 3, '2024-11-12 16:00:00'; -- Titanic en Sala 2D
+EXEC InsertarFuncion 7, 4, '2024-11-12 18:30:00'; -- El Rey León en Sala 3D
+EXEC InsertarFuncion 8, 5, '2024-11-12 21:00:00'; -- Inception en Sala 2D
 GO
 
-INSERT INTO Entrada (idFuncion, idCliente, precioEntrada, cantidadEntradas) VALUES
-(1, 1, 10.00, 2),
-(2, 2, 12.50, 3),
-(3, 3, 8.50, 1),
-(4, 4, 15.00, 4),
-(5, 5, 20.00, 2),
-(6, 6, 18.00, 5),
-(7, 7, 22.00, 2),
-(8, 8, 16.50, 3),
-(9, 9, 14.00, 1),
-(10, 10, 19.00, 4);
+EXEC InsertarEntrada 1, 1, 6000.00, 20; 
+EXEC InsertarEntrada 2, 2, 7600.00, 20; 
+EXEC InsertarEntrada 3, 3, 6000.00, 100; 
+EXEC InsertarEntrada 4, 4, 7600.00, 20; 
+EXEC InsertarEntrada 5, 5, 6000.00, 120; 
+EXEC InsertarEntrada 6, 6, 7600.00, 80;  
+EXEC InsertarEntrada 7, 7, 6000.00, 140; 
+EXEC InsertarEntrada 8, 8, 7600.00, 10; 
+EXEC InsertarEntrada 9, 9, 6000.00, 20; 
+EXEC InsertarEntrada 10, 10, 10000.00, 80; 
+EXEC InsertarEntrada 11, 11, 6000.00, 20; 
+EXEC InsertarEntrada 12, 12, 7600.00, 20; 
+EXEC InsertarEntrada 13, 13, 6000.00, 125; 
+EXEC InsertarEntrada 14, 14, 7600.00, 110; 
+EXEC InsertarEntrada 15, 15, 6000.00, 95; 
+EXEC InsertarEntrada 16, 16, 7600.00, 80;  
+EXEC InsertarEntrada 17, 17, 6000.00, 140; 
+EXEC InsertarEntrada 18, 18, 7600.00, 100; 
+EXEC InsertarEntrada 19, 19, 6000.00, 110; 
+EXEC InsertarEntrada 20, 20, 10000.00, 90; 
+
+
 GO
 
-INSERT INTO Asiento (idEntrada, asiento) VALUES
-(1, 'A1'),
-(1, 'A2'),
-(2, 'B1'),
-(2, 'B2'),
-(2, 'B3'),
-(3, 'C1'),
-(4, 'D1'),
-(4, 'D2'),
-(5, 'E1'),
-(6, 'F1');
+EXEC InsertarAsiento 1, 'A1';
+EXEC InsertarAsiento 1, 'A2';
+EXEC InsertarAsiento 2, 'B1';
+EXEC InsertarAsiento 2, 'B2';
+EXEC InsertarAsiento 2, 'B3';
+EXEC InsertarAsiento 3, 'C1';
+EXEC InsertarAsiento 4, 'D1';
+EXEC InsertarAsiento 4, 'D2';
+EXEC InsertarAsiento 4, 'D3';
+EXEC InsertarAsiento 4, 'D4';
+EXEC InsertarAsiento 5, 'E1';
+EXEC InsertarAsiento 5, 'E2';
+EXEC InsertarAsiento 6, 'F1';
+EXEC InsertarAsiento 6, 'F2';
+EXEC InsertarAsiento 6, 'F3';
+EXEC InsertarAsiento 6, 'F4';
+EXEC InsertarAsiento 6, 'F5';
+EXEC InsertarAsiento 7, 'G1';
+EXEC InsertarAsiento 7, 'G2';
+EXEC InsertarAsiento 8, 'H1';
+EXEC InsertarAsiento 8, 'H2';
+EXEC InsertarAsiento 8, 'H3';
+EXEC InsertarAsiento 9, 'I1';
+EXEC InsertarAsiento 10, 'J1';
+EXEC InsertarAsiento 10, 'J2';
+EXEC InsertarAsiento 10, 'J3';
+EXEC InsertarAsiento 10, 'J4';
+
 GO
 
 --CONSULTAS PARA EL FUNCIONAMIENTO DEL SISTEMA
 
--- Todas las funciones de una película específica
+-- Vista para todas las funciones de una película específica
+CREATE VIEW VistaFuncionesPorPelicula AS
 SELECT f.idFuncion, f.fechaHoraFuncion, s.capacidadSala, p.tituloPelicula
 FROM Funcion f
 JOIN Sala s ON f.idSala = s.idSala
-JOIN Pelicula p ON f.idPelicula = p.idPelicula
-WHERE p.tituloPelicula = 'Deadpool & Wolverine';
-go
+JOIN Pelicula p ON f.idPelicula = p.idPelicula;
+GO
 
--- Entradas de un cliente en específico 
-SELECT e.idEntrada, c.NombreCliente1, c.apellidoCliente1, f.fechaHoraFuncion, p.tituloPelicula, e.precioEntrada, e.cantidadEntradas, a.asiento
-FROM Entrada e
-JOIN Funcion f ON e.idFuncion = f.idFuncion
-JOIN Pelicula p ON f.idPelicula = p.idPelicula
-JOIN Asiento a ON e.idEntrada = a.idEntrada
-JOIN Cliente c ON e.idCliente= c.idCliente
-WHERE e.idCliente = 2; 
-go
 
--- Consultar todos los asientos de una entrada específica
-SELECT a.asiento, s.idSala AS NumeroSala, f.FechaHoraFuncion
-FROM Asiento a
-JOIN Entrada e ON a.idEntrada = e.idEntrada
-JOIN Funcion f ON e.idFuncion = f.idFuncion
-JOIN Sala s ON f.idSala = s.idSala
-WHERE a.idEntrada = 2;
-go
 
--- Historial funciones de un cliente
-SELECT f.fechaHoraFuncion, a.asiento, p.tituloPelicula
-FROM Entrada e
-JOIN Funcion f ON e.idFuncion = f.idFuncion
-JOIN Asiento a ON e.idEntrada = a.idEntrada
-JOIN Pelicula p ON f.idPelicula = p.idPelicula
-WHERE e.idCliente = 3;
-go
-
--- Funciones programadas para un determinado día
+-- Vista para obtener las funciones de un determinado día
+CREATE VIEW VistaFuncionesPorDia AS
 SELECT f.idFuncion, f.fechaHoraFuncion, s.idSala AS NumeroSala, s.tipoSala, p.tituloPelicula
 FROM Funcion f
 JOIN Sala s ON f.idSala = s.idSala
-JOIN Pelicula p ON f.idPelicula = p.idPelicula
-WHERE CAST(f.fechaHoraFuncion AS DATE) = '2024-11-07'
-go
+JOIN Pelicula p ON f.idPelicula = p.idPelicula;
+GO
 
--- Entradas disponibles para una función
+-- Vista para obtener las entradas disponibles para una función
+CREATE VIEW VistaEntradasDisponiblesPorFuncion AS
 SELECT f.idFuncion, f.fechaHoraFuncion, SUM(e.cantidadEntradas) AS entradasVendidas, s.capacidadSala - SUM(e.cantidadEntradas) AS entradasDisponibles
 FROM Entrada e
 JOIN Funcion f ON e.idFuncion = f.idFuncion
 JOIN Sala s ON f.idSala = s.idSala
-WHERE f.idFuncion = 2 
-GROUP BY f.idFuncion, f.fechaHoraFuncion, s.capacidadSala; 
-go
+GROUP BY f.idFuncion, f.fechaHoraFuncion, s.capacidadSala;
+GO
 
--- Información clientes que compraron entradas para una función
+-- Vista para clientes que compraron entradas para una función específica
+CREATE VIEW VistaClientesPorFuncion AS
 SELECT c.nombreCliente1, c.nombreCliente2, c.apellidoCliente1, c.apellidoCliente2, e.precioEntrada, e.cantidadEntradas, a.asiento
 FROM Entrada e
 JOIN Cliente c ON e.idCliente = c.idCliente
 JOIN Asiento a ON e.idEntrada = a.idEntrada
-JOIN Funcion f ON e.idFuncion = f.idFuncion
-WHERE f.idFuncion = 1; 
-go
-
--- Cantidad de entradas vendidas por película
-SELECT p.tituloPelicula, SUM(e.cantidadEntradas) AS totalEntradasVendidas
-FROM Entrada e
-JOIN Funcion f ON e.idFuncion = f.idFuncion
-JOIN Pelicula p ON f.idPelicula = p.idPelicula
-GROUP BY p.tituloPelicula;
-go
-
--- Funciones de una película en un intervalo de fechas
-SELECT f.idFuncion, f.fechaHoraFuncion, s.idSala as NumeroSala, s.tipoSala
-FROM Funcion f
-JOIN Sala s ON f.idSala = s.idSala
-JOIN Pelicula p ON f.idPelicula = p.idPelicula
-WHERE p.tituloPelicula = 'Deadpool & Wolverine' AND f.fechaHoraFuncion BETWEEN '2024-11-01' AND '2024-11-30';
-go
-
--- Total recaudado por una función
-SELECT p.tituloPelicula, 
-       SUM(e.precioEntrada * e.cantidadEntradas) AS totalRecaudado
-FROM Entrada e
-JOIN Funcion f ON e.idFuncion = f.idFuncion
-JOIN Pelicula p ON f.idPelicula = p.idPelicula
-WHERE e.idFuncion = 1
-GROUP BY p.tituloPelicula;
-go
-
--- Funciones de una sala específica
-SELECT f.idFuncion, s.idSala AS NumeroSala, f.fechaHoraFuncion, p.tituloPelicula
-FROM Funcion f
-JOIN Pelicula p ON f.idPelicula = p.idPelicula
-JOIN Sala s ON f.idSala = s.idSala
-WHERE f.idSala = 1; 
-go
-
--- Películas más vistas
-SELECT p.tituloPelicula, SUM(e.cantidadEntradas) AS totalEntradasVendidas
-FROM Entrada e
-JOIN Funcion f ON e.idFuncion = f.idFuncion
-JOIN Pelicula p ON f.idPelicula = p.idPelicula
-GROUP BY p.tituloPelicula
-ORDER BY totalEntradasVendidas DESC;
+JOIN Funcion f ON e.idFuncion = f.idFuncion;
 GO
+
+-- Vista para obtener las películas más vistas (cantidad de entradas vendidas)
+CREATE VIEW VistaPeliculasMasVistas AS
+SELECT p.tituloPelicula, SUM(e.cantidadEntradas) AS totalEntradasVendidas
+FROM Entrada e
+JOIN Funcion f ON e.idFuncion = f.idFuncion
+JOIN Pelicula p ON f.idPelicula = p.idPelicula
+GROUP BY p.tituloPelicula;
+GO
+
+-- Vista para obtener todas las funciones programadas para un intervalo de fechas
+CREATE VIEW VistaFuncionesPorIntervaloFechas AS
+SELECT f.idFuncion, f.fechaHoraFuncion, s.idSala AS NumeroSala, s.tipoSala
+FROM Funcion f
+JOIN Sala s ON f.idSala = s.idSala
+JOIN Pelicula p ON f.idPelicula = p.idPelicula
+WHERE f.fechaHoraFuncion BETWEEN '2024-11-01' AND '2024-11-30';
+GO
+
+CREATE VIEW VistaPeliculasPorGenero AS
+SELECT p.generoPelicula, COUNT(e.idEntrada) AS totalEntradas, SUM(e.precioEntrada * e.cantidadEntradas) AS recaudacion
+FROM Pelicula p
+JOIN Funcion f ON p.idPelicula = f.idPelicula
+JOIN Entrada e ON f.idFuncion = e.idFuncion
+GROUP BY p.generoPelicula;
+GO
+
+-- Vista para obtener la recaudación total del cine por día
+CREATE VIEW VistaRecaudacionPorDia AS
+SELECT CAST(f.fechaHoraFuncion AS DATE) AS Fecha, SUM(e.precioEntrada * e.cantidadEntradas) AS RecaudacionDiaria
+FROM Funcion f
+JOIN Entrada e ON f.idFuncion = e.idFuncion
+GROUP BY CAST(f.fechaHoraFuncion AS DATE);
+GO
+
+SELECT * FROM VistaFuncionesPorPelicula
+WHERE tituloPelicula = 'Deadpool & Wolverine';
+
+SELECT * FROM VistaEntradasDisponiblesPorFuncion
+WHERE idFuncion = 2;
+
+SELECT * FROM VistaPeliculasMasVistas;
+
+SELECT * FROM VistaFuncionesPorIntervaloFechas;
+
+-- Función para verificar si un asiento está disponible en una entrada específica
+CREATE FUNCTION dbo.fn_AsientoDisponible (@idEntrada INT, @asiento VARCHAR(10))
+RETURNS BIT
+AS
+BEGIN
+    RETURN (CASE WHEN EXISTS (SELECT 1 FROM Asiento WHERE idEntrada = @idEntrada AND asiento = @asiento) THEN 0 ELSE 1 END);
+END;
+GO
+
+-- Función para calcular la recaudación total por una función específica
+CREATE FUNCTION dbo.fn_RecaudacionTotalPorFuncion (@idFuncion INT)
+RETURNS DECIMAL(10, 2)
+AS
+BEGIN
+    DECLARE @recaudacionTotal DECIMAL(10, 2);
+    SELECT @recaudacionTotal = SUM(e.precioEntrada * e.cantidadEntradas)
+    FROM Entrada e
+    WHERE e.idFuncion = @idFuncion;
+    RETURN @recaudacionTotal;
+END;
+GO
+
+-- Función para obtener el total de entradas vendidas por una película específica
+CREATE FUNCTION dbo.fn_CantidadEntradasVendidasPorPelicula (@tituloPelicula VARCHAR(100))
+RETURNS INT
+AS
+BEGIN
+    DECLARE @cantidadVendida INT;
+    SELECT @cantidadVendida = SUM(e.cantidadEntradas)
+    FROM Entrada e
+    JOIN Funcion f ON e.idFuncion = f.idFuncion
+    JOIN Pelicula p ON f.idPelicula = p.idPelicula
+    WHERE p.tituloPelicula = @tituloPelicula;
+    RETURN @cantidadVendida;
+END;
+GO
+
+-- Función para obtener el total de entradas vendidas por sala
+CREATE FUNCTION dbo.fn_EntradasVendidasPorSala (@idSala INT)
+RETURNS INT
+AS
+BEGIN
+    DECLARE @totalEntradas INT;
+    SELECT @totalEntradas = SUM(e.cantidadEntradas)
+    FROM Entrada e
+    JOIN Funcion f ON e.idFuncion = f.idFuncion
+    WHERE f.idSala = @idSala;
+    RETURN @totalEntradas;
+END;
+GO
+
+CREATE FUNCTION dbo.fn_RecaudacionPorDia (@fecha DATE)
+RETURNS DECIMAL(10, 2)
+AS
+BEGIN
+    DECLARE @recaudacion DECIMAL(10, 2);
+    SELECT @recaudacion = SUM(e.precioEntrada * e.cantidadEntradas)
+    FROM Funcion f
+    JOIN Entrada e ON f.idFuncion = e.idFuncion
+    WHERE CAST(f.fechaHoraFuncion AS DATE) = @fecha;
+    RETURN ISNULL(@recaudacion, 0);
+END;
+GO
+
+-- Función para listar los asientos ocupados en una función específica
+CREATE FUNCTION dbo.fn_AsientosOcupadosPorFuncion (@idFuncion INT)
+RETURNS TABLE
+AS
+RETURN (
+    SELECT a.asiento
+    FROM Asiento a
+    JOIN Entrada e ON a.idEntrada = e.idEntrada
+    WHERE e.idFuncion = @idFuncion
+);
+GO
+
+
+
+SELECT dbo.fn_AsientoDisponible(1, 'A1') AS AsientoDisponible;
+
+SELECT dbo.fn_RecaudacionTotalPorFuncion(1) AS TotalRecaudado;
+
+SELECT dbo.fn_CantidadEntradasVendidasPorPelicula('Deadpool & Wolverine') AS TotalEntradasVendidas;
+
+SELECT dbo.fn_EntradasVendidasPorSala(1) AS TotalEntradasVendidas;
+
+
+
+
