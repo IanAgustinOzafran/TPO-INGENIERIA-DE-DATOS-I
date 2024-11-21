@@ -1,6 +1,6 @@
-CREATE DATABASE Cine6
+CREATE DATABASE Cinetik
 
-USE Cine6
+USE Cinetik
 
 CREATE TABLE Sala (
     idSala INT IDENTITY(1,1) PRIMARY KEY,
@@ -117,7 +117,6 @@ BEGIN
     FROM Sala s
     WHERE s.idSala = @idSala;
 
-    -- Validamos la suma de entradas actuales con la nueva cantidad
     IF (SELECT SUM(e.cantidadEntradas) 
         FROM Entrada e 
         WHERE e.idFuncion = @idFuncion) > @capacidadSala
@@ -217,14 +216,11 @@ BEGIN
     BEGIN TRY
         BEGIN TRANSACTION;
 
-        -- Verificar si la película está asociada a alguna función
         IF EXISTS (SELECT 1 FROM Funcion WHERE idPelicula = @idPelicula)
         BEGIN
-            -- Eliminar las funciones asociadas
             DELETE FROM Funcion WHERE idPelicula = @idPelicula;
         END
 
-        -- Eliminar la película de la tabla Pelicula
         DELETE FROM Pelicula WHERE idPelicula = @idPelicula;
 
         COMMIT TRANSACTION;
@@ -297,10 +293,17 @@ CREATE PROCEDURE InsertarFuncion (
 )
 AS
 BEGIN
+    IF NOT EXISTS (SELECT 1 FROM Pelicula WHERE idPelicula = @idPelicula)
+    BEGIN
+        PRINT 'La película con el ID ' + CAST(@idPelicula AS VARCHAR) + ' no existe.';
+        RETURN;
+    END
+
     INSERT INTO Funcion (idSala, idPelicula, fechaHoraFuncion)
     VALUES (@idSala, @idPelicula, @fechaHoraFuncion);
 END;
-go
+GO
+
 
 -- READ: Obtener todas las funciones
 CREATE PROCEDURE ObtenerFunciones
@@ -339,14 +342,14 @@ BEGIN
     BEGIN TRY
         BEGIN TRANSACTION;
 
-        IF NOT EXISTS (SELECT 1 FROM Funcion WHERE idFuncion = @idFuncion)-- Verificar si la función existe
+        IF NOT EXISTS (SELECT 1 FROM Funcion WHERE idFuncion = @idFuncion)
         BEGIN
             PRINT 'La función no existe.';
             ROLLBACK TRANSACTION;
             RETURN;
         END
 
-        DELETE FROM Funcion WHERE idFuncion = @idFuncion;-- Eliminar la función
+        DELETE FROM Funcion WHERE idFuncion = @idFuncion;
 
         COMMIT TRANSACTION;
         PRINT 'Función eliminada con éxito.';
@@ -449,8 +452,9 @@ BEGIN
 END;
 GO
 
--- Inserción de datos para cada tabla
 
+
+-- Inserción de datos para cada tabla
 
 EXEC InsertarSala '2D', 100;
 EXEC InsertarSala '3D', 120;
@@ -465,7 +469,6 @@ EXEC InsertarSala 'IMAX', 110;
 GO
 
 
-
 EXEC InsertarPelicula 'Deadpool & Wolverine', 'Acción', 127, 'R';
 EXEC InsertarPelicula 'Avengers: Endgame', 'Acción', 181, 'PG-13';
 EXEC InsertarPelicula 'Titanic', 'Drama/Romance', 195, 'PG-13';
@@ -476,7 +479,6 @@ EXEC InsertarPelicula 'Jurassic Park', 'Ciencia ficción/Aventura', 127, 'PG-13'
 EXEC InsertarPelicula 'The Dark Knight', 'Acción/Crimen', 152, 'PG-13';
 EXEC InsertarPelicula 'Forrest Gump', 'Drama/Romance', 142, 'PG-13';
 EXEC InsertarPelicula 'Matrix', 'Ciencia ficción', 136, 'R';
-
 GO
 
 EXEC InsertarCliente 'Juan', 'Carlos', 'Pérez', 'García', '1155710020', 'juan.perez@gmail.com';
@@ -499,61 +501,62 @@ EXEC InsertarCliente 'Lucía', 'Sofía', 'Martínez', 'Cruz', '1145678912', 'luc
 EXEC InsertarCliente 'Santiago', 'Andrés', 'Vázquez', NULL, '1156781234', 'santiago.v@gmail.com';
 EXEC InsertarCliente 'Camila', NULL, 'Torres', NULL, '1167891234', 'camila.t@gmail.com';
 EXEC InsertarCliente 'Matías', 'Federico', 'Gómez', 'Ruiz', '1191234567', 'matias.g@gmail.com';
+GO
+
+
+-- Funciones en distintas salas
+EXEC InsertarFuncion 1, 1, '2024-11-07 11:00:00'; -- Deadpool & Wolverine en Sala 1
+EXEC InsertarFuncion 2, 2, '2024-11-07 13:00:00'; -- Avengers: Endgame en Sala 2
+EXEC InsertarFuncion 3, 3, '2024-11-07 17:00:00'; -- Titanic en Sala 3
+EXEC InsertarFuncion 4, 4, '2024-11-07 19:30:00'; -- El Rey León en Sala 4
+EXEC InsertarFuncion 5, 5, '2024-11-07 21:30:00'; -- Inception en Sala 5
+EXEC InsertarFuncion 6, 6, '2024-11-08 10:00:00'; -- El Padrino en Sala 6
+EXEC InsertarFuncion 7, 7, '2024-11-08 12:30:00'; -- Jurassic Park en Sala 7
+EXEC InsertarFuncion 8, 8, '2024-11-08 16:00:00'; -- The Dark Knight en Sala 8
+EXEC InsertarFuncion 9, 9, '2024-11-08 18:30:00'; -- Forrest Gump en Sala 9
+EXEC InsertarFuncion 10, 10, '2024-11-08 20:30:00'; -- Matrix en Sala 10
+EXEC InsertarFuncion 1, 1, '2024-11-09 11:00:00'; -- Deadpool & Wolverine en Sala 1
+EXEC InsertarFuncion 2, 2, '2024-11-09 13:00:00'; -- Avengers: Endgame en Sala 2
+EXEC InsertarFuncion 3, 3, '2024-11-09 15:30:00'; -- Titanic en Sala 3
+EXEC InsertarFuncion 4, 4, '2024-11-09 18:00:00'; -- El Rey León en Sala 4
+EXEC InsertarFuncion 5, 5, '2024-11-09 20:30:00'; -- Inception en Sala 5
+EXEC InsertarFuncion 6, 6, '2024-11-10 14:00:00'; -- El Padrino en Sala 6
+EXEC InsertarFuncion 7, 7, '2024-11-10 16:30:00'; -- Jurassic Park en Sala 7
+EXEC InsertarFuncion 8, 8, '2024-11-10 19:00:00'; -- The Dark Knight en Sala 8
+EXEC InsertarFuncion 9, 9, '2024-11-10 21:00:00'; -- Forrest Gump en Sala 9
+EXEC InsertarFuncion 10, 10, '2024-11-11 14:30:00'; -- Matrix en Sala 10
+EXEC InsertarFuncion 1, 1, '2024-11-12 11:00:00'; -- Deadpool & Wolverine en Sala 1
+EXEC InsertarFuncion 2, 2, '2024-11-12 13:30:00'; -- Avengers: Endgame en Sala 2
+EXEC InsertarFuncion 3, 3, '2024-11-12 16:00:00'; -- Titanic en Sala 3
+EXEC InsertarFuncion 4, 4, '2024-11-12 18:30:00'; -- El Rey León en Sala 4
+EXEC InsertarFuncion 5, 5, '2024-11-12 21:00:00'; -- Inception en Sala 5
 
 GO
 
 
-EXEC InsertarFuncion 2, 1, '2024-11-07 11:00:00'; -- Deadpool & Wolverine en Sala 2D
-EXEC InsertarFuncion 3, 2, '2024-11-07 13:00:00'; -- Avengers: Endgame en Sala 3D
-EXEC InsertarFuncion 4, 3, '2024-11-07 17:00:00'; -- Titanic en Sala 2D
-EXEC InsertarFuncion 5, 4, '2024-11-07 19:30:00'; -- El Rey León en Sala 3D
-EXEC InsertarFuncion 6, 5, '2024-11-07 21:30:00'; -- Inception en Sala 2D
-EXEC InsertarFuncion 7, 6, '2024-11-08 10:00:00'; -- El Padrino en Sala 3D
-EXEC InsertarFuncion 8, 7, '2024-11-08 12:30:00'; -- Jurassic Park en Sala 2D
-EXEC InsertarFuncion 9, 8, '2024-11-08 16:00:00'; -- The Dark Knight en Sala 3D
-EXEC InsertarFuncion 10, 9, '2024-11-08 18:30:00'; -- Forrest Gump en Sala 2D
-EXEC InsertarFuncion 2, 10, '2024-11-08 20:30:00'; -- Matrix en Sala IMAX
-
-EXEC InsertarFuncion 3, 1, '2024-11-09 11:00:00'; -- Deadpool & Wolverine en Sala 2D
-EXEC InsertarFuncion 4, 2, '2024-11-09 13:00:00'; -- Avengers: Endgame en Sala 3D
-EXEC InsertarFuncion 5, 3, '2024-11-09 15:30:00'; -- Titanic en Sala 2D
-EXEC InsertarFuncion 6, 4, '2024-11-09 18:00:00'; -- El Rey León en Sala 3D
-EXEC InsertarFuncion 7, 5, '2024-11-09 20:30:00'; -- Inception en Sala 2D
-EXEC InsertarFuncion 8, 6, '2024-11-10 14:00:00'; -- El Padrino en Sala 3D
-EXEC InsertarFuncion 9, 7, '2024-11-10 16:30:00'; -- Jurassic Park en Sala 2D
-EXEC InsertarFuncion 10, 8, '2024-11-10 19:00:00'; -- The Dark Knight en Sala 3D
-EXEC InsertarFuncion 2, 9, '2024-11-10 21:00:00'; -- Forrest Gump en Sala 2D
-EXEC InsertarFuncion 3, 10, '2024-11-11 14:30:00'; -- Matrix en Sala IMAX
-
-EXEC InsertarFuncion 4, 1, '2024-11-12 11:00:00'; -- Deadpool & Wolverine en Sala 2D
-EXEC InsertarFuncion 5, 2, '2024-11-12 13:30:00'; -- Avengers: Endgame en Sala 3D
-EXEC InsertarFuncion 6, 3, '2024-11-12 16:00:00'; -- Titanic en Sala 2D
-EXEC InsertarFuncion 7, 4, '2024-11-12 18:30:00'; -- El Rey León en Sala 3D
-EXEC InsertarFuncion 8, 5, '2024-11-12 21:00:00'; -- Inception en Sala 2D
-GO
-
-EXEC InsertarEntrada 1, 1, 6000.00, 20; 
-EXEC InsertarEntrada 2, 2, 7600.00, 20; 
-EXEC InsertarEntrada 3, 3, 6000.00, 100; 
-EXEC InsertarEntrada 4, 4, 7600.00, 20; 
-EXEC InsertarEntrada 5, 5, 6000.00, 120; 
-EXEC InsertarEntrada 6, 6, 7600.00, 80;  
-EXEC InsertarEntrada 7, 7, 6000.00, 140; 
-EXEC InsertarEntrada 8, 8, 7600.00, 10; 
-EXEC InsertarEntrada 9, 9, 6000.00, 20; 
-EXEC InsertarEntrada 10, 10, 10000.00, 80; 
-EXEC InsertarEntrada 11, 11, 6000.00, 20; 
-EXEC InsertarEntrada 12, 12, 7600.00, 20; 
-EXEC InsertarEntrada 13, 13, 6000.00, 125; 
-EXEC InsertarEntrada 14, 14, 7600.00, 110; 
-EXEC InsertarEntrada 15, 15, 6000.00, 95; 
-EXEC InsertarEntrada 16, 16, 7600.00, 80;  
-EXEC InsertarEntrada 17, 17, 6000.00, 140; 
-EXEC InsertarEntrada 18, 18, 7600.00, 100; 
-EXEC InsertarEntrada 19, 19, 6000.00, 110; 
-EXEC InsertarEntrada 20, 20, 10000.00, 90; 
 
 
+
+EXEC InsertarEntrada 1, 1, 6000.00, 4; 
+EXEC InsertarEntrada 2, 2, 7600.00, 5; 
+EXEC InsertarEntrada 3, 3, 6000.00, 3; 
+EXEC InsertarEntrada 4, 4, 7600.00, 1; 
+EXEC InsertarEntrada 5, 5, 6000.00, 11; 
+EXEC InsertarEntrada 6, 6, 7600.00, 6;  
+EXEC InsertarEntrada 7, 7, 6000.00, 3; 
+EXEC InsertarEntrada 8, 8, 7600.00, 5; 
+EXEC InsertarEntrada 9, 9, 6000.00, 6; 
+EXEC InsertarEntrada 10, 10, 10000.00, 4; 
+EXEC InsertarEntrada 11, 11, 6000.00, 5; 
+EXEC InsertarEntrada 12, 12, 7600.00, 1; 
+EXEC InsertarEntrada 13, 13, 6000.00, 5; 
+EXEC InsertarEntrada 14, 14, 7600.00, 8; 
+EXEC InsertarEntrada 15, 15, 6000.00, 7; 
+EXEC InsertarEntrada 16, 16, 7600.00, 5;  
+EXEC InsertarEntrada 17, 17, 6000.00, 9; 
+EXEC InsertarEntrada 18, 18, 7600.00, 12; 
+EXEC InsertarEntrada 19, 19, 6000.00, 11; 
+EXEC InsertarEntrada 20, 20, 10000.00, 4; 
 GO
 
 EXEC InsertarAsiento 1, 'A1';
@@ -583,7 +586,6 @@ EXEC InsertarAsiento 10, 'J1';
 EXEC InsertarAsiento 10, 'J2';
 EXEC InsertarAsiento 10, 'J3';
 EXEC InsertarAsiento 10, 'J4';
-
 GO
 
 --CONSULTAS PARA EL FUNCIONAMIENTO DEL SISTEMA
@@ -597,15 +599,6 @@ JOIN Pelicula p ON f.idPelicula = p.idPelicula;
 GO
 
 
-
--- Vista para obtener las funciones de un determinado día
-CREATE VIEW VistaFuncionesPorDia AS
-SELECT f.idFuncion, f.fechaHoraFuncion, s.idSala AS NumeroSala, s.tipoSala, p.tituloPelicula
-FROM Funcion f
-JOIN Sala s ON f.idSala = s.idSala
-JOIN Pelicula p ON f.idPelicula = p.idPelicula;
-GO
-
 -- Vista para obtener las entradas disponibles para una función
 CREATE VIEW VistaEntradasDisponiblesPorFuncion AS
 SELECT f.idFuncion, f.fechaHoraFuncion, SUM(e.cantidadEntradas) AS entradasVendidas, s.capacidadSala - SUM(e.cantidadEntradas) AS entradasDisponibles
@@ -613,15 +606,6 @@ FROM Entrada e
 JOIN Funcion f ON e.idFuncion = f.idFuncion
 JOIN Sala s ON f.idSala = s.idSala
 GROUP BY f.idFuncion, f.fechaHoraFuncion, s.capacidadSala;
-GO
-
--- Vista para clientes que compraron entradas para una función específica
-CREATE VIEW VistaClientesPorFuncion AS
-SELECT c.nombreCliente1, c.nombreCliente2, c.apellidoCliente1, c.apellidoCliente2, e.precioEntrada, e.cantidadEntradas, a.asiento
-FROM Entrada e
-JOIN Cliente c ON e.idCliente = c.idCliente
-JOIN Asiento a ON e.idEntrada = a.idEntrada
-JOIN Funcion f ON e.idFuncion = f.idFuncion;
 GO
 
 -- Vista para obtener las películas más vistas (cantidad de entradas vendidas)
@@ -643,12 +627,16 @@ WHERE f.fechaHoraFuncion BETWEEN '2024-11-01' AND '2024-11-30';
 GO
 
 CREATE VIEW VistaPeliculasPorGenero AS
-SELECT p.generoPelicula, COUNT(e.idEntrada) AS totalEntradas, SUM(e.precioEntrada * e.cantidadEntradas) AS recaudacion
+SELECT p.generoPelicula, 
+       SUM(e.cantidadEntradas) AS totalEntradas,  
+       SUM(e.precioEntrada * e.cantidadEntradas) AS recaudacion  
 FROM Pelicula p
 JOIN Funcion f ON p.idPelicula = f.idPelicula
 JOIN Entrada e ON f.idFuncion = e.idFuncion
 GROUP BY p.generoPelicula;
 GO
+
+
 
 -- Vista para obtener la recaudación total del cine por día
 CREATE VIEW VistaRecaudacionPorDia AS
@@ -658,15 +646,28 @@ JOIN Entrada e ON f.idFuncion = e.idFuncion
 GROUP BY CAST(f.fechaHoraFuncion AS DATE);
 GO
 
+
 SELECT * FROM VistaFuncionesPorPelicula
 WHERE tituloPelicula = 'Deadpool & Wolverine';
 
 SELECT * FROM VistaEntradasDisponiblesPorFuncion
-WHERE idFuncion = 2;
+WHERE idFuncion = 18;
 
-SELECT * FROM VistaPeliculasMasVistas;
+SELECT * FROM VistaPeliculasMasVistas
+ORDER BY totalEntradasVendidas DESC;
 
 SELECT * FROM VistaFuncionesPorIntervaloFechas;
+
+SELECT * FROM VistaPeliculasPorGenero
+ORDER BY recaudacion DESC;
+
+SELECT * FROM VistaRecaudacionPorDia
+WHERE Fecha BETWEEN '2024-11-01' AND '2024-11-15';
+
+GO
+
+
+-- FUNCIONES
 
 -- Función para verificar si un asiento está disponible en una entrada específica
 CREATE FUNCTION dbo.fn_AsientoDisponible (@idEntrada INT, @asiento VARCHAR(10))
@@ -719,6 +720,7 @@ BEGIN
 END;
 GO
 
+-- Funcion para mostrar recaudado en total en x día
 CREATE FUNCTION dbo.fn_RecaudacionPorDia (@fecha DATE)
 RETURNS DECIMAL(10, 2)
 AS
@@ -745,14 +747,18 @@ RETURN (
 GO
 
 
-
-SELECT dbo.fn_AsientoDisponible(1, 'A1') AS AsientoDisponible;
+SELECT dbo.fn_AsientoDisponible(1, 'A1') AS AsientoDisponible; --Devuelve 0 o 1 dependiendo si está ocupado o no
 
 SELECT dbo.fn_RecaudacionTotalPorFuncion(1) AS TotalRecaudado;
 
 SELECT dbo.fn_CantidadEntradasVendidasPorPelicula('Deadpool & Wolverine') AS TotalEntradasVendidas;
 
-SELECT dbo.fn_EntradasVendidasPorSala(1) AS TotalEntradasVendidas;
+SELECT dbo.fn_EntradasVendidasPorSala(3) AS TotalEntradasVendidas;
+
+SELECT * FROM dbo.fn_AsientosOcupadosPorFuncion(2);
+
+SELECT dbo.fn_RecaudacionPorDia('2024-11-08') AS TotalRecaudadoEnElDia
+GO 
 
 
 
