@@ -1,5 +1,3 @@
-# TPO-INGENIERIA-DE-DATOS-
-
 # 🎬 Cinetik - Sistema de Gestión de Cine
 
 ## 📌 Descripción
